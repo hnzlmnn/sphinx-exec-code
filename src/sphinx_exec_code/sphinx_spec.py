@@ -7,13 +7,14 @@ class SphinxSpecBase:
     aliases: Dict[str, str]
     defaults: Dict[str, str]
 
-    def __init__(self, hide: bool, linenos: bool, caption: str, language: str):
+    def __init__(self, hide: bool, linenos: bool, caption: str, language: str, filename: str):
         # flags
         self.hide = hide
         self.linenos = linenos
         # values
         self.caption = caption
         self.language = language
+        self.filename: str = filename
 
     @classmethod
     def from_options(cls, options: Dict[str, Any]) -> 'SphinxSpecBase':
@@ -58,10 +59,6 @@ class SpecCode(SphinxSpecBase):
         'filename': '',
     }
 
-    def __init__(self, hide: bool, linenos: bool, caption: str, language: str, filename: str):
-        super().__init__(hide, linenos, caption, language)
-        self.filename: str = filename
-
 
 class SpecOutput(SphinxSpecBase):
     aliases = {
@@ -69,8 +66,15 @@ class SpecOutput(SphinxSpecBase):
         'caption_output': 'caption',
         'language_output': 'language',
         'linenos_output': 'linenos',
+        'filename': 'filename',
+        'render': 'render'
     }
     defaults = {
         'caption': '',
         'language': 'none',
+        'filename': '',
     }
+
+    def __init__(self, render: bool, **kwargs):
+        super().__init__(**kwargs)
+        self.render = render

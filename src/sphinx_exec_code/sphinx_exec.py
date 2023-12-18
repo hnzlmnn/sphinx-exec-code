@@ -3,6 +3,8 @@ from pathlib import Path
 from typing import List
 
 from docutils import nodes
+from docutils.statemachine import ViewList
+from sphinx.util.nodes import nested_parse_with_titles
 from sphinx.errors import ExtensionError
 from sphinx.util.docutils import SphinxDirective
 
@@ -12,23 +14,6 @@ from sphinx_exec_code.code_format import get_show_exec_code, VisibilityMarkerErr
 from sphinx_exec_code.configuration import EXAMPLE_DIR
 from sphinx_exec_code.sphinx_spec import build_spec, SpecCode, SpecOutput, SphinxSpecBase
 
-
-def create_literal_block(objs: list, code: str, spec: SphinxSpecBase):
-    if spec.hide or not code:
-        return None
-
-    # generate header if specified
-    if spec.caption:
-        objs.append(nodes.caption(text=spec.caption))
-
-    # generate code block
-    block = nodes.literal_block(code, code)
-    objs.append(block)
-
-    # set linenos
-    block['linenos'] = spec.linenos
-    block['language'] = spec.language
-    return None
 
 
 class ExecCode(SphinxDirective):
@@ -96,7 +81,7 @@ class ExecCode(SphinxDirective):
             raise ExtensionError(f'Could not parse code markers at {self.get_location()}', orig_exc=e)
 
         # Show the code from the user
-        create_literal_block(output, code_show, spec=code_spec)
+        self.create_literal_block(output, code_show, spec=code_spec)
 
         try:
             code_results = execute_code(code_exec, file, line)
@@ -111,5 +96,39 @@ class ExecCode(SphinxDirective):
             raise ExtensionError('Could not execute code!') from None
 
         # Show the output from the code execution
-        create_literal_block(output, code_results, spec=SpecOutput.from_options(self.options))
+        self.create_literal_block(output, code_results, spec=SpecOutput.from_options(self.options))
         return output
+
+    def create_literal_block(self, objs: list, code: str, spec: SphinxSpecBase):
+        if spec.hide or not code:
+            return None
+
+        # generate header if specified
+        if spec.caption:
+            objs.append(nodes.caption(text=spec.caption))
+
+        if spec.render:
+            rst = ViewList()
+            for i, line in enumerate(code.split('\n')):
+                rst.append(line, spec.filename or 'sphinx_exec.rst', i + 1)
+
+            # Create a node.
+            node = nodes.section()
+            node.document = self.state.document
+
+            # Parse the rst.
+            nested_parse_with_titles(self.state, rst, node)
+
+            # And return the result.
+            objs.extend(node.children)
+            return None
+
+
+        # generate code block
+        block = nodes.literal_block(code, code)
+        objs.append(block)
+
+        # set linenos
+        block['linenos'] = spec.linenos
+        block['language'] = spec.language
+        return None
